@@ -3,7 +3,7 @@ const cors = require('cors')
 const session = require('express-session')
 const passport = require('passport')
 require('dotenv').config()
-console.log('Loaded CLIENT_URL:', process.env.CLIENT_URL);
+console.log('Loaded CLIENT_URL:', process.env.CLIENT_URL)
 const connectDB = require('./utils/db')
 
 require('./utils/passport')
