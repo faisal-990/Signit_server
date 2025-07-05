@@ -1,8 +1,6 @@
 const express = require('express')
 const cors = require('cors')
-const session = require('express-session')
 const passport = require('passport')
-const MongoStore = require('connect-mongo');
 require('dotenv').config()
 console.log('Loaded CLIENT_URL:', process.env.CLIENT_URL)
 const connectDB = require('./utils/db')
@@ -24,18 +22,7 @@ app.use(express.urlencoded({ extended: true }))
 app.use('/uploads', cors({ origin: process.env.CLIENT_URL, credentials: true }))
 app.use('/uploads', express.static('uploads'))
 
-app.use(session({
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  store: MongoStore.create({ mongoUrl: process.env.MONGODB_URI}),
-  cookie: {
-    sameSite: 'none',
-    secure: true
-  }
-}))
 app.use(passport.initialize())
-app.use(passport.session())
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
