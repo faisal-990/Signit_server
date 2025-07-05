@@ -9,6 +9,7 @@ const connectDB = require('./utils/db')
 require('./utils/passport')
 
 const app = express()
+app.set('trust proxy', 1); // Trust the first proxy (Render/Cloudflare)
 const PORT = process.env.PORT || 5000
 
 connectDB()
