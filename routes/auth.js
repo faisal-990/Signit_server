@@ -12,8 +12,9 @@ router.get('/google/callback',
     session: true
   }),
   (req, res) => {
-    // On success, send user info
-    res.redirect(process.env.CLIENT_URL + '/')
+    req.session.save(() => {
+      res.redirect(process.env.CLIENT_URL);
+    });
   }
 )
 
