@@ -13,26 +13,14 @@ passport.use(new GoogleStrategy({
     if (!user) {
       user = await User.create({
         googleId: profile.id,
-        displayName: profile.displayName,
-        email: profile.emails && profile.emails[0]?.value,
-        photo: profile.photos && profile.photos[0]?.value,
+        email: profile.emails[0].value,
+        name: profile.displayName,
       })
     }
-    done(null, user._id)
+    return done(null, user)
   } catch (err) {
-    done(err, null)
+    return done(err, null)
   }
 }))
 
-passport.serializeUser((userId, done) => {
-  done(null, userId)
-})
-
-passport.deserializeUser(async (id, done) => {
-  try {
-    const user = await User.findById(id)
-    done(null, user)
-  } catch (err) {
-    done(err, null)
-  }
-}) 
+// No serializeUser/deserializeUser needed for JWT-only auth 
