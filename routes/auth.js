@@ -12,6 +12,8 @@ router.get('/google/callback',
     session: true
   }),
   (req, res) => {
+    console.log('User after Google login:', req.user);
+    console.log('Session:', req.session);
     req.session.save(() => {
       res.redirect(process.env.CLIENT_URL);
     });
