@@ -31,24 +31,22 @@ router.post("/", async (req, res) => {
     console.log(`To: ${recipientEmail}`);
     console.log(`Link: ${link}`);
 
-    // Debug Env Vars (Do not print the password, just check length)
     const user = process.env.GMAIL_USER;
     const pass = process.env.GMAIL_PASS;
-    console.log(
-      `Config Check -> User: ${user ? user : "MISSING"}, Pass: ${pass ? "SET (" + pass.length + " chars)" : "MISSING"}`,
-    );
 
     if (user && pass) {
-      console.log("🔄 Connecting to Gmail SMTP...");
+      console.log("🔄 Connecting to Gmail (Port 587)...");
       try {
+        // FIX: Explicitly use Port 587 to avoid Render firewall blocks
         const transporter = nodemailer.createTransport({
-          service: "gmail",
+          host: "smtp.gmail.com",
+          port: 587,
+          secure: false, // Must be false for port 587
           auth: { user, pass },
+          tls: {
+            ciphers: "SSLv3", // Helps with some cloud network handshakes
+          },
         });
-
-        // Verify connection configuration
-        await transporter.verify();
-        console.log("✅ SMTP Connection Verified.");
 
         const info = await transporter.sendMail({
           from: user,
@@ -58,11 +56,7 @@ router.post("/", async (req, res) => {
         });
         console.log("✅ Email Sent! Message ID:", info.messageId);
       } catch (emailErr) {
-        console.error("❌ FATAL EMAIL ERROR:");
-        console.error(emailErr); // THIS PRINTS THE FULL ERROR OBJECT
-
-        if (emailErr.response)
-          console.error("SMTP Response:", emailErr.response);
+        console.error("❌ EMAIL ERROR:", emailErr.message);
       }
     } else {
       console.log("❌ Skipping Email: GMAIL_USER or GMAIL_PASS missing.");
