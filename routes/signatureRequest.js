@@ -7,8 +7,6 @@ const nodemailer = require("nodemailer");
 
 router.post("/", async (req, res) => {
   const { documentId, recipientEmail } = req.body;
-
-  // Use our bypass user if req.user is missing
   const senderEmail = req.user ? req.user.email : "demo@signit.com";
 
   if (!documentId || !recipientEmail)
@@ -28,37 +26,49 @@ router.post("/", async (req, res) => {
 
     const link = `${process.env.CLIENT_URL}/sign/${token}`;
 
-    console.log("---------------------------------------------------");
-    console.log("📧 [DEMO EMAIL SYSTEM]");
+    console.log("===================================================");
+    console.log("📧 EMAIL SYSTEM DEBUGGER");
     console.log(`To: ${recipientEmail}`);
-    console.log(`Subject: Please sign ${doc.name}`);
-    console.log(`🔗 SIGNING LINK: ${link}`);
-    console.log("---------------------------------------------------");
+    console.log(`Link: ${link}`);
 
-    // Try to send real email (Will likely fail without App Password)
-    try {
-      if (process.env.GMAIL_USER && process.env.GMAIL_PASS) {
+    // Debug Env Vars (Do not print the password, just check length)
+    const user = process.env.GMAIL_USER;
+    const pass = process.env.GMAIL_PASS;
+    console.log(
+      `Config Check -> User: ${user ? user : "MISSING"}, Pass: ${pass ? "SET (" + pass.length + " chars)" : "MISSING"}`,
+    );
+
+    if (user && pass) {
+      console.log("🔄 Connecting to Gmail SMTP...");
+      try {
         const transporter = nodemailer.createTransport({
           service: "gmail",
-          auth: {
-            user: process.env.GMAIL_USER,
-            pass: process.env.GMAIL_PASS,
-          },
+          auth: { user, pass },
         });
-        await transporter.sendMail({
-          from: process.env.GMAIL_USER,
+
+        // Verify connection configuration
+        await transporter.verify();
+        console.log("✅ SMTP Connection Verified.");
+
+        const info = await transporter.sendMail({
+          from: user,
           to: recipientEmail,
-          subject: "Please sign the document",
+          subject: `Please sign: ${doc.name}`,
           html: `<p>Please sign: <a href="${link}">${link}</a></p>`,
         });
-      }
-    } catch (emailErr) {
-      console.log(
-        "⚠️ Email failed to send (expected in demo). Use the link above.",
-      );
-    }
+        console.log("✅ Email Sent! Message ID:", info.messageId);
+      } catch (emailErr) {
+        console.error("❌ FATAL EMAIL ERROR:");
+        console.error(emailErr); // THIS PRINTS THE FULL ERROR OBJECT
 
-    // Return success regardless of email status because we logged the link
+        if (emailErr.response)
+          console.error("SMTP Response:", emailErr.response);
+      }
+    } else {
+      console.log("❌ Skipping Email: GMAIL_USER or GMAIL_PASS missing.");
+    }
+    console.log("===================================================");
+
     res.json({ success: true, request, debugLink: link });
   } catch (err) {
     console.error("Signature Request Error:", err);
@@ -66,37 +76,4 @@ router.post("/", async (req, res) => {
   }
 });
 
-// GET /api/signature-request/:token
-router.get("/:token", async (req, res) => {
-  try {
-    const request = await SignatureRequest.findOne({
-      token: req.params.token,
-    }).populate("document");
-    if (!request) return res.status(404).json({ error: "Invalid link" });
-    res.json(request);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch request" });
-  }
-});
-
-// POST /api/signature-request/:token/sign
-router.post("/:token/sign", async (req, res) => {
-  try {
-    const request = await SignatureRequest.findOne({ token: req.params.token });
-    if (!request) return res.status(404).json({ error: "Invalid link" });
-
-    request.status = "signed";
-    request.signedAt = new Date();
-    request.signatureData = req.body.signatureData;
-    await request.save();
-
-    await Document.findByIdAndUpdate(request.document, { status: "signed" });
-
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to save signature" });
-  }
-});
-
 module.exports = router;
-
