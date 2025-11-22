@@ -13,14 +13,12 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // --- DYNAMIC ENVIRONMENT CHECK ---
-// This checks for the 'NODE_ENV' variable you just added
 const isProduction = process.env.NODE_ENV === "production";
 console.log(`Running in ${isProduction ? "production" : "development"} mode`);
 
 connectDB(); //
 
 // --- PRODUCTION-ONLY SETTING ---
-// Trust Render's proxy to handle HTTPS correctly
 if (isProduction) {
   app.set("trust proxy", 1); //
 }
@@ -52,10 +50,9 @@ const sessionConfig = {
 };
 
 if (isProduction) {
-  sessionConfig.cookie.secure = true; // MUST be true for cross-domain (HTTPS)
-  sessionConfig.cookie.sameSite = "none"; // Allows Vercel <-> Render cookies
+  sessionConfig.cookie.secure = true;
+  sessionConfig.cookie.sameSite = "none";
 } else {
-  // Use non-secure settings for http://localhost development
   sessionConfig.cookie.secure = false;
   sessionConfig.cookie.sameSite = "lax";
 }
@@ -65,6 +62,24 @@ app.use(session(sessionConfig));
 
 app.use(passport.initialize()); //
 app.use(passport.session()); //
+
+// ==================================================================
+// --- BYPASS AUTH MIDDLEWARE (Start) ---
+// This forces the server to believe a user is always logged in.
+app.use((req, res, next) => {
+  req.user = {
+    _id: "65e1234567890abcdef12345", // Hardcoded ID (must be valid length for Mongo)
+    displayName: "Demo User",
+    email: "demo@example.com",
+    googleId: "demo_google_id",
+    photo: "https://ui-avatars.com/api/?name=Demo+User&background=random",
+  };
+  // Mock the isAuthenticated function
+  req.isAuthenticated = () => true;
+  next();
+});
+// --- BYPASS AUTH MIDDLEWARE (End) ---
+// ==================================================================
 
 // --- ROUTES ---
 app.get("/api/health", (req, res) => {
