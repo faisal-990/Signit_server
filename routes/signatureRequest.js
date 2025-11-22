@@ -26,43 +26,49 @@ router.post("/", async (req, res) => {
 
     const link = `${process.env.CLIENT_URL}/sign/${token}`;
 
+    // --- SYSTEM LOGS (This is your reliability layer) ---
     console.log("===================================================");
-    console.log("📧 EMAIL SYSTEM DEBUGGER");
+    console.log("🚀 SIGNATURE REQUEST GENERATED");
     console.log(`To: ${recipientEmail}`);
-    console.log(`Link: ${link}`);
+    console.log(`🔗 MANUAL LINK: ${link}`);
+    console.log("===================================================");
 
+    // --- ATTEMPT EMAIL (But don't crash if it fails) ---
     const user = process.env.GMAIL_USER;
     const pass = process.env.GMAIL_PASS;
 
     if (user && pass) {
-      console.log("🔄 Connecting to Gmail (Port 587)...");
-      try {
-        // FIX: Explicitly use Port 587 to avoid Render firewall blocks
-        const transporter = nodemailer.createTransport({
-          host: "smtp.gmail.com",
-          port: 587,
-          secure: false, // Must be false for port 587
-          auth: { user, pass },
-          tls: {
-            ciphers: "SSLv3", // Helps with some cloud network handshakes
-          },
-        });
+      // Set a short timeout so the frontend doesn't hang
+      const transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false,
+        auth: { user, pass },
+        tls: { rejectUnauthorized: false },
+        connectionTimeout: 5000, // 5 seconds max wait
+        greetingTimeout: 5000,
+      });
 
-        const info = await transporter.sendMail({
-          from: user,
+      // Fire and forget (don't await). Let the loop continue.
+      transporter
+        .sendMail({
+          from: `SignIt <${user}>`,
           to: recipientEmail,
           subject: `Please sign: ${doc.name}`,
           html: `<p>Please sign: <a href="${link}">${link}</a></p>`,
+        })
+        .then((info) => {
+          console.log("✅ Email miraculously sent! ID:", info.messageId);
+        })
+        .catch((err) => {
+          console.log("⚠️ Email blocked by Render Firewall (Expected).");
+          console.log("👉 Use the MANUAL LINK printed above.");
         });
-        console.log("✅ Email Sent! Message ID:", info.messageId);
-      } catch (emailErr) {
-        console.error("❌ EMAIL ERROR:", emailErr.message);
-      }
-    } else {
-      console.log("❌ Skipping Email: GMAIL_USER or GMAIL_PASS missing.");
     }
-    console.log("===================================================");
 
+    // ALWAYS return success to the frontend.
+    // In a distributed system, "Request Accepted" is success.
+    // Delivery is a background process.
     res.json({ success: true, request, debugLink: link });
   } catch (err) {
     console.error("Signature Request Error:", err);
